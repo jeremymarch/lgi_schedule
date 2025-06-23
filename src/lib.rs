@@ -38,11 +38,7 @@ pub struct Summer {
     pub days_array: Vec<Day>, //Vec<Box<dyn SgiDay>>,
 }
 
-pub fn create_summer(
-    start_date: &str,
-    holidays: Vec<String>,
-    faculty: Vec<String>,
-) -> Option<Summer> {
+pub fn create_summer(start_date: &str, holidays: Vec<&str>, faculty: Vec<&str>) -> Option<Summer> {
     let date_suffix = " 08:30[America/New_York]";
 
     let mut holidays_zoned: Vec<Zoned> = vec![];
@@ -57,6 +53,10 @@ pub fn create_summer(
         holidays: holidays_zoned,
         days_array: vec![],
     };
+
+    if summer.start_date.weekday() != Weekday::Monday {
+        return None;
+    }
 
     let mut these_days = summer.start_date.clone();
     let one_day = 1.day();
@@ -90,22 +90,22 @@ pub fn create_summer(
             let day = Day {
                 day: day_num.to_string(),
                 date: these_days.clone(),
-                morning_optional: Some(faculty[(d + 3) % faculty_len].clone()),
-                quiz_grader: faculty[(d + 0) % faculty_len].clone(),
+                morning_optional: Some(faculty[(d + 3) % faculty_len].to_string()),
+                quiz_grader: faculty[(d + 0) % faculty_len].to_string(),
                 drill1: vec![
-                    faculty[(d + 0) % faculty_len].clone(),
-                    faculty[(d + 1) % faculty_len].clone(),
-                    faculty[(d + 2) % faculty_len].clone(),
+                    faculty[(d + 0) % faculty_len].to_string(),
+                    faculty[(d + 1) % faculty_len].to_string(),
+                    faculty[(d + 2) % faculty_len].to_string(),
                 ],
                 drill2: vec![
-                    faculty[(d + 2) % faculty_len].clone(),
-                    faculty[(d + 3) % faculty_len].clone(),
-                    faculty[(d + 1) % faculty_len].clone(),
+                    faculty[(d + 2) % faculty_len].to_string(),
+                    faculty[(d + 3) % faculty_len].to_string(),
+                    faculty[(d + 1) % faculty_len].to_string(),
                 ],
-                noon_optional1: faculty[(d + 2) % faculty_len].clone(),
-                noon_optional2: Some(faculty[(d + 3) % faculty_len].clone()),
-                lecture: faculty[(d + 0) % faculty_len].clone(),
-                voc_notes: faculty[(d + 1) % faculty_len].clone(),
+                noon_optional1: faculty[(d + 2) % faculty_len].to_string(),
+                noon_optional2: Some(faculty[(d + 3) % faculty_len].to_string()),
+                lecture: faculty[(d + 0) % faculty_len].to_string(),
+                voc_notes: faculty[(d + 1) % faculty_len].to_string(),
             };
             day_num += 1;
             summer.days_array.push(day); //Box::new(day));
@@ -270,13 +270,8 @@ mod tests {
     #[test]
     fn make_schedule() {
         let start = "2025-06-09";
-        let holidays = vec![String::from("2025-06-19"), String::from("2025-07-04")];
-        let faculty = vec![
-            String::from("BP"),
-            String::from("JM"),
-            String::from("HH"),
-            String::from("EBH"),
-        ];
+        let holidays = vec!["2025-06-19", "2025-07-04"];
+        let faculty = vec!["BP", "JM", "HH", "EBH"];
         let s = create_summer(start, holidays, faculty).unwrap();
         for a in s.days_array {
             println!("{} {}", a.day, get_weekday(a.date.weekday()));
