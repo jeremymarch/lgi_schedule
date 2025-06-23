@@ -235,7 +235,7 @@ fn make_schedule(params: Params) {
 pub fn get_weekday(w: Weekday) -> String {
     match w {
         Weekday::Monday => String::from("Monday"),
-        Weekday::Tuesday => String::from("Tueday"),
+        Weekday::Tuesday => String::from("Tuesday"),
         Weekday::Wednesday => String::from("Wednesday"),
         Weekday::Thursday => String::from("Thursday"),
         Weekday::Friday => String::from("Friday"),
