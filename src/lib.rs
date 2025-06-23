@@ -1,6 +1,7 @@
 use jiff::{civil::Weekday, ToSpan, Zoned};
-use rand::seq::SliceRandom;
-use rand::thread_rng;
+use serde::{Deserialize, Serialize};
+//use rand::seq::SliceRandom;
+//use rand::thread_rng;
 
 enum SgiDays {
     DayOne,
@@ -8,6 +9,7 @@ enum SgiDays {
     WeeksFourToSix,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Day {
     pub day: String,
     pub date: Zoned,
@@ -29,6 +31,7 @@ impl SgiDay for Day {
     fn get_drills(&self) {}
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Summer {
     pub start: Zoned,
     pub days_array: Vec<Day>, //Vec<Box<dyn SgiDay>>,
@@ -49,35 +52,47 @@ pub fn create_summer(start: &str, faculty: Vec<String>) -> Option<Summer> {
     // 3    2
     let faculty_len = faculty.len();
     for d in 0..=49 {
-        let day = Day {
-            day: (d + 1).to_string(),
-            date: these_days.clone(),
-            morning_optional: Some(faculty[(d + 3) % faculty_len].clone()),
-            quiz_grader: faculty[(d + 0) % faculty_len].clone(),
-            drill1: vec![
-                faculty[(d + 0) % faculty_len].clone(),
-                faculty[(d + 1) % faculty_len].clone(),
-                faculty[(d + 2) % faculty_len].clone(),
-            ],
-            drill2: vec![
-                faculty[(d + 2) % faculty_len].clone(),
-                faculty[(d + 3) % faculty_len].clone(),
-                faculty[(d + 1) % faculty_len].clone(),
-            ],
-            noon_optional1: faculty[(d + 2) % faculty_len].clone(),
-            noon_optional2: Some(faculty[(d + 3) % faculty_len].clone()),
-            lecture: faculty[(d + 0) % faculty_len].clone(),
-            voc_notes: faculty[(d + 1) % faculty_len].clone(),
-        };
+        if these_days.weekday() == Weekday::Saturday || these_days.weekday() == Weekday::Sunday {
+            let day = Day {
+                day: String::from(""),
+                date: these_days.clone(),
+                morning_optional: None,
+                quiz_grader: String::from(""),
+                drill1: vec![],
+                drill2: vec![],
+                noon_optional1: String::from(""),
+                noon_optional2: None,
+                lecture: String::from(""),
+                voc_notes: String::from(""),
+            };
 
-        summer.days_array.push(day); //Box::new(day));
-        if these_days.weekday() == Weekday::Friday {
-            these_days = these_days.checked_add(one_day).unwrap();
-            these_days = these_days.checked_add(one_day).unwrap();
-            these_days = these_days.checked_add(one_day).unwrap();
+            summer.days_array.push(day); //Box::new(day));
         } else {
-            these_days = these_days.checked_add(one_day).unwrap();
+            let day = Day {
+                day: (d + 1).to_string(),
+                date: these_days.clone(),
+                morning_optional: Some(faculty[(d + 3) % faculty_len].clone()),
+                quiz_grader: faculty[(d + 0) % faculty_len].clone(),
+                drill1: vec![
+                    faculty[(d + 0) % faculty_len].clone(),
+                    faculty[(d + 1) % faculty_len].clone(),
+                    faculty[(d + 2) % faculty_len].clone(),
+                ],
+                drill2: vec![
+                    faculty[(d + 2) % faculty_len].clone(),
+                    faculty[(d + 3) % faculty_len].clone(),
+                    faculty[(d + 1) % faculty_len].clone(),
+                ],
+                noon_optional1: faculty[(d + 2) % faculty_len].clone(),
+                noon_optional2: Some(faculty[(d + 3) % faculty_len].clone()),
+                lecture: faculty[(d + 0) % faculty_len].clone(),
+                voc_notes: faculty[(d + 1) % faculty_len].clone(),
+            };
+
+            summer.days_array.push(day); //Box::new(day));
         }
+
+        these_days = these_days.checked_add(one_day).unwrap();
     }
 
     Some(summer)
@@ -109,6 +124,7 @@ pub fn t1() {
     }
 }
 
+/*
 pub fn add() {
     let width = 8;
     let height = 4;
@@ -195,6 +211,7 @@ pub fn add() {
     println!("{:?}", a[2]);
     println!("{:?}", a[3]);
 }
+*/
 
 struct Params<'a> {
     faculty: &'a [String],
@@ -215,21 +232,21 @@ fn make_schedule(params: Params) {
     //for h in num {}
 }
 
+pub fn get_weekday(w: Weekday) -> String {
+    match w {
+        Weekday::Monday => String::from("Monday"),
+        Weekday::Tuesday => String::from("Tueday"),
+        Weekday::Wednesday => String::from("Wednesday"),
+        Weekday::Thursday => String::from("Thursday"),
+        Weekday::Friday => String::from("Friday"),
+        Weekday::Saturday => String::from("Saturday"),
+        Weekday::Sunday => String::from("Sunday"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn get_weekday(w: Weekday) -> String {
-        match w {
-            Weekday::Monday => String::from("Monday"),
-            Weekday::Tuesday => String::from("Tueday"),
-            Weekday::Wednesday => String::from("Wednesday"),
-            Weekday::Thursday => String::from("Thursday"),
-            Weekday::Friday => String::from("Friday"),
-            Weekday::Saturday => String::from("Saturday"),
-            Weekday::Sunday => String::from("Sunday"),
-        }
-    }
 
     #[test]
     fn make_schedule() {
@@ -242,7 +259,7 @@ mod tests {
         ];
         let s = create_summer(start, faculty).unwrap();
         for a in s.days_array {
-            println!("{} {}", a.day, get_weekday(a.date.weekday()));
+            //println!("{} {}", a.day, get_weekday(a.date.weekday()));
             println!("     {}    {}", a.drill1[0], a.drill2[0]);
             println!("     {}    {}", a.drill1[1], a.drill2[1]);
             println!("     {}    {}", a.drill1[2], a.drill2[2])
@@ -251,7 +268,7 @@ mod tests {
 
     #[test]
     fn it_works() {
-        add();
+        //add();
         //assert_eq!(result, 4);
     }
 
