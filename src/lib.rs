@@ -33,17 +33,32 @@ impl SgiDay for Day {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Summer {
-    pub start: Zoned,
+    pub start_date: Zoned,
+    pub holidays: Vec<Zoned>,
     pub days_array: Vec<Day>, //Vec<Box<dyn SgiDay>>,
 }
 
-pub fn create_summer(start: &str, faculty: Vec<String>) -> Option<Summer> {
+pub fn create_summer(
+    start_date: &str,
+    holidays: Vec<String>,
+    faculty: Vec<String>,
+) -> Option<Summer> {
+    let date_suffix = " 08:30[America/New_York]";
+
+    let mut holidays_zoned: Vec<Zoned> = vec![];
+    for h in holidays {
+        if let Ok(hz) = format!("{}{}", h, date_suffix).parse() {
+            holidays_zoned.push(hz);
+        }
+    }
+
     let mut summer = Summer {
-        start: start.parse().unwrap(),
+        start_date: format!("{}{}", start_date, date_suffix).parse().unwrap(),
+        holidays: holidays_zoned,
         days_array: vec![],
     };
 
-    let mut these_days = summer.start.clone();
+    let mut these_days = summer.start_date.clone();
     let one_day = 1.day();
 
     // Drills:
@@ -51,8 +66,12 @@ pub fn create_summer(start: &str, faculty: Vec<String>) -> Option<Summer> {
     // 2    4
     // 3    2
     let faculty_len = faculty.len();
-    for d in 0..=49 {
-        if these_days.weekday() == Weekday::Saturday || these_days.weekday() == Weekday::Sunday {
+    let mut day_num = 1;
+    for d in 0..=70 {
+        if these_days.weekday() == Weekday::Saturday
+            || these_days.weekday() == Weekday::Sunday
+            || summer.holidays.contains(&these_days)
+        {
             let day = Day {
                 day: String::from(""),
                 date: these_days.clone(),
@@ -69,7 +88,7 @@ pub fn create_summer(start: &str, faculty: Vec<String>) -> Option<Summer> {
             summer.days_array.push(day); //Box::new(day));
         } else {
             let day = Day {
-                day: (d + 1).to_string(),
+                day: day_num.to_string(),
                 date: these_days.clone(),
                 morning_optional: Some(faculty[(d + 3) % faculty_len].clone()),
                 quiz_grader: faculty[(d + 0) % faculty_len].clone(),
@@ -88,7 +107,7 @@ pub fn create_summer(start: &str, faculty: Vec<String>) -> Option<Summer> {
                 lecture: faculty[(d + 0) % faculty_len].clone(),
                 voc_notes: faculty[(d + 1) % faculty_len].clone(),
             };
-
+            day_num += 1;
             summer.days_array.push(day); //Box::new(day));
         }
 
@@ -250,16 +269,17 @@ mod tests {
 
     #[test]
     fn make_schedule() {
-        let start = "2025-06-09 08:30[America/New_York]";
+        let start = "2025-06-09";
+        let holidays = vec![String::from("2025-06-19"), String::from("2025-07-04")];
         let faculty = vec![
             String::from("BP"),
             String::from("JM"),
             String::from("HH"),
             String::from("EBH"),
         ];
-        let s = create_summer(start, faculty).unwrap();
+        let s = create_summer(start, holidays, faculty).unwrap();
         for a in s.days_array {
-            //println!("{} {}", a.day, get_weekday(a.date.weekday()));
+            println!("{} {}", a.day, get_weekday(a.date.weekday()));
             println!("     {}    {}", a.drill1[0], a.drill2[0]);
             println!("     {}    {}", a.drill1[1], a.drill2[1]);
             println!("     {}    {}", a.drill1[2], a.drill2[2])
