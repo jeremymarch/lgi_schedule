@@ -11,7 +11,8 @@ enum SgiDays {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Day {
-    pub day: String,
+    pub exam: Option<String>,
+    pub day: u32,
     pub date: Zoned,
     pub morning_optional: Option<String>,
     pub quiz_grader: String,
@@ -20,7 +21,10 @@ pub struct Day {
     pub noon_optional1: String,
     pub noon_optional2: Option<String>,
     pub lecture: String,
+    pub lecture_title: String,
     pub voc_notes: String,
+    pub friday_review1: Vec<String>,
+    pub friday_review2: Vec<String>,
 }
 
 pub trait SgiDay {
@@ -67,13 +71,15 @@ pub fn create_summer(start_date: &str, holidays: Vec<&str>, faculty: Vec<&str>) 
     // 3    2
     let faculty_len = faculty.len();
     let mut day_num = 1;
+    let mut lecture_num: u32 = 0;
     for d in 0..=70 {
         if these_days.weekday() == Weekday::Saturday
             || these_days.weekday() == Weekday::Sunday
             || summer.holidays.contains(&these_days)
         {
             let day = Day {
-                day: String::from(""),
+                exam: None,
+                day: 0,
                 date: these_days.clone(),
                 morning_optional: None,
                 quiz_grader: String::from(""),
@@ -82,13 +88,21 @@ pub fn create_summer(start_date: &str, holidays: Vec<&str>, faculty: Vec<&str>) 
                 noon_optional1: String::from(""),
                 noon_optional2: None,
                 lecture: String::from(""),
+                lecture_title: String::from(""),
                 voc_notes: String::from(""),
+                friday_review1: vec![],
+                friday_review2: vec![],
             };
 
             summer.days_array.push(day); //Box::new(day));
         } else {
             let day = Day {
-                day: day_num.to_string(),
+                exam: if these_days.weekday() == Weekday::Monday {
+                    Some(String::from("JM"))
+                } else {
+                    None
+                },
+                day: day_num,
                 date: these_days.clone(),
                 morning_optional: Some(faculty[(d + 3) % faculty_len].to_string()),
                 quiz_grader: faculty[(d + 0) % faculty_len].to_string(),
@@ -105,7 +119,55 @@ pub fn create_summer(start_date: &str, holidays: Vec<&str>, faculty: Vec<&str>) 
                 noon_optional1: faculty[(d + 2) % faculty_len].to_string(),
                 noon_optional2: Some(faculty[(d + 3) % faculty_len].to_string()),
                 lecture: faculty[(d + 0) % faculty_len].to_string(),
+                lecture_title: match day_num {
+                    1 => String::from("Lecture on Accents"),
+                    2..28 => format!(
+                        "Lecture on Unit {}",
+                        if (these_days.weekday() == Weekday::Thursday
+                            && summer
+                                .holidays
+                                .contains(&these_days.checked_add(one_day).unwrap()))
+                            || these_days.weekday() == Weekday::Friday
+                        {
+                            0
+                        } else {
+                            lecture_num += 1;
+                            lecture_num
+                        }
+                    ),
+                    _ => String::from(""),
+                },
                 voc_notes: faculty[(d + 1) % faculty_len].to_string(),
+                friday_review1: if (these_days.weekday() == Weekday::Thursday
+                    && summer
+                        .holidays
+                        .contains(&these_days.checked_add(one_day).unwrap()))
+                    || these_days.weekday() == Weekday::Friday
+                {
+                    vec![
+                        faculty[(d + 0) % faculty_len].to_string(),
+                        faculty[(d + 1) % faculty_len].to_string(),
+                    ]
+                } else {
+                    vec![]
+                },
+                friday_review2: if (these_days.weekday() == Weekday::Thursday
+                    && summer
+                        .holidays
+                        .contains(&these_days.checked_add(one_day).unwrap()))
+                    || these_days.weekday() == Weekday::Friday
+                {
+                    vec![
+                        faculty[(d + 2) % faculty_len].to_string(),
+                        if day_num < 15 {
+                            faculty[(d + 3) % faculty_len].to_string()
+                        } else {
+                            faculty[(d + 0) % faculty_len].to_string()
+                        },
+                    ]
+                } else {
+                    vec![]
+                },
             };
             day_num += 1;
             summer.days_array.push(day); //Box::new(day));
