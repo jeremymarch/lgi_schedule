@@ -3,11 +3,11 @@ use serde::{Deserialize, Serialize};
 //use rand::seq::SliceRandom;
 //use rand::thread_rng;
 
-enum SgiDays {
-    DayOne,
-    WeeksOneToThree,
-    WeeksFourToSix,
-}
+// enum SgiDays {
+//     DayOne,
+//     WeeksOneToThree,
+//     WeeksFourToSix,
+// }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Day {
@@ -75,10 +75,11 @@ pub fn create_summer(
     // 1    3
     // 2    4
     // 3    2
-    let mut faculty_len = faculty[0].len();
+
     let mut day_num = 1;
     let mut lecture_num: u32 = 0;
     let mut week_idx = 0;
+    let mut faculty_len = faculty[week_idx].len();
     for d in 0..=70 {
         if these_days.weekday() == Weekday::Saturday
             || these_days.weekday() == Weekday::Sunday
@@ -106,16 +107,28 @@ pub fn create_summer(
             summer.days_array.push(day); //Box::new(day));
         } else {
             let day = Day {
-                exam: if these_days.weekday() == Weekday::Monday {
+                exam: if these_days.weekday() == Weekday::Monday
+                    && day_num != 24
+                    && day_num != 34
+                    && day_num != 44
+                {
                     Some(String::from("JM"))
                 } else {
                     None
                 },
                 day: day_num,
                 date: these_days.clone(),
-                morning_optional: Some(faculty[0][(d + 3) % faculty_len].to_string()),
-                quiz_grader: faculty[0][(d + 0) % faculty_len].to_string(),
-                drill1: if day_num < 15 {
+                morning_optional: if faculty_len > 3 {
+                    Some(faculty[week_idx][(d + 3) % faculty_len].to_string())
+                } else {
+                    Some(faculty[week_idx][(d + 2) % faculty_len].to_string())
+                },
+                quiz_grader: if faculty_len > 3 {
+                    faculty[week_idx][(d + 0) % faculty_len].to_string()
+                } else {
+                    faculty[week_idx][(d + 0) % faculty_len].to_string()
+                },
+                drill1: if faculty_len > 3 {
                     vec![
                         faculty[week_idx][(d + 0) % faculty_len].to_string(),
                         faculty[week_idx][(d + 1) % faculty_len].to_string(),
@@ -127,7 +140,7 @@ pub fn create_summer(
                         faculty[week_idx][(d + 1) % faculty_len].to_string(),
                     ]
                 },
-                drill2: if day_num < 15 {
+                drill2: if faculty_len > 3 {
                     vec![
                         faculty[week_idx][(d + 2) % faculty_len].to_string(),
                         faculty[week_idx][(d + 3) % faculty_len].to_string(),
@@ -146,7 +159,7 @@ pub fn create_summer(
                 lecture: faculty[0][(d + 0) % faculty_len].to_string(),
                 lecture_title: match day_num {
                     1 => String::from("Lecture on Accents"),
-                    2..28 => format!(
+                    2..27 => format!(
                         "Lecture on Unit {}",
                         if (these_days.weekday() == Weekday::Thursday
                             && summer
@@ -168,10 +181,11 @@ pub fn create_summer(
                         .holidays
                         .contains(&these_days.checked_add(one_day).unwrap()))
                     || these_days.weekday() == Weekday::Friday
+                    || day_num == 27
                 {
                     vec![
-                        faculty[0][(d + 0) % faculty_len].to_string(),
-                        faculty[0][(d + 1) % faculty_len].to_string(),
+                        faculty[week_idx][(d + 0) % faculty_len].to_string(),
+                        faculty[week_idx][(d + 1) % faculty_len].to_string(),
                     ]
                 } else {
                     vec![]
@@ -181,13 +195,14 @@ pub fn create_summer(
                         .holidays
                         .contains(&these_days.checked_add(one_day).unwrap()))
                     || these_days.weekday() == Weekday::Friday
+                    || day_num == 27
                 {
                     vec![
-                        faculty[0][(d + 2) % faculty_len].to_string(),
-                        if day_num < 15 {
-                            faculty[0][(d + 3) % faculty_len].to_string()
+                        faculty[week_idx][(d + 2) % faculty_len].to_string(),
+                        if faculty_len > 3 {
+                            faculty[week_idx][(d + 3) % faculty_len].to_string()
                         } else {
-                            faculty[0][(d + 0) % faculty_len].to_string()
+                            faculty[week_idx][(d + 0) % faculty_len].to_string()
                         },
                     ]
                 } else {
