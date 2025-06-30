@@ -20,6 +20,8 @@ pub struct Day {
     pub drill2: Vec<String>,
     pub noon_optional1: String,
     pub noon_optional2: Option<String>,
+    pub noon_optional1_title: String,
+    pub noon_optional2_title: Option<String>,
     pub lecture: String,
     pub lecture_title: String,
     pub voc_notes: String,
@@ -42,7 +44,11 @@ pub struct Summer {
     pub days_array: Vec<Day>, //Vec<Box<dyn SgiDay>>,
 }
 
-pub fn create_summer(start_date: &str, holidays: Vec<&str>, faculty: Vec<&str>) -> Option<Summer> {
+pub fn create_summer(
+    start_date: &str,
+    holidays: Vec<&str>,
+    faculty: Vec<Vec<&str>>,
+) -> Option<Summer> {
     let date_suffix = " 08:30[America/New_York]";
 
     let mut holidays_zoned: Vec<Zoned> = vec![];
@@ -69,9 +75,10 @@ pub fn create_summer(start_date: &str, holidays: Vec<&str>, faculty: Vec<&str>) 
     // 1    3
     // 2    4
     // 3    2
-    let faculty_len = faculty.len();
+    let mut faculty_len = faculty[0].len();
     let mut day_num = 1;
     let mut lecture_num: u32 = 0;
+    let mut week_idx = 0;
     for d in 0..=70 {
         if these_days.weekday() == Weekday::Saturday
             || these_days.weekday() == Weekday::Sunday
@@ -87,6 +94,8 @@ pub fn create_summer(start_date: &str, holidays: Vec<&str>, faculty: Vec<&str>) 
                 drill2: vec![],
                 noon_optional1: String::from(""),
                 noon_optional2: None,
+                noon_optional1_title: String::from(""),
+                noon_optional2_title: None,
                 lecture: String::from(""),
                 lecture_title: String::from(""),
                 voc_notes: String::from(""),
@@ -104,21 +113,37 @@ pub fn create_summer(start_date: &str, holidays: Vec<&str>, faculty: Vec<&str>) 
                 },
                 day: day_num,
                 date: these_days.clone(),
-                morning_optional: Some(faculty[(d + 3) % faculty_len].to_string()),
-                quiz_grader: faculty[(d + 0) % faculty_len].to_string(),
-                drill1: vec![
-                    faculty[(d + 0) % faculty_len].to_string(),
-                    faculty[(d + 1) % faculty_len].to_string(),
-                    faculty[(d + 2) % faculty_len].to_string(),
-                ],
-                drill2: vec![
-                    faculty[(d + 2) % faculty_len].to_string(),
-                    faculty[(d + 3) % faculty_len].to_string(),
-                    faculty[(d + 1) % faculty_len].to_string(),
-                ],
-                noon_optional1: faculty[(d + 2) % faculty_len].to_string(),
-                noon_optional2: Some(faculty[(d + 3) % faculty_len].to_string()),
-                lecture: faculty[(d + 0) % faculty_len].to_string(),
+                morning_optional: Some(faculty[0][(d + 3) % faculty_len].to_string()),
+                quiz_grader: faculty[0][(d + 0) % faculty_len].to_string(),
+                drill1: if day_num < 15 {
+                    vec![
+                        faculty[week_idx][(d + 0) % faculty_len].to_string(),
+                        faculty[week_idx][(d + 1) % faculty_len].to_string(),
+                        faculty[week_idx][(d + 2) % faculty_len].to_string(),
+                    ]
+                } else {
+                    vec![
+                        faculty[week_idx][(d + 0) % faculty_len].to_string(),
+                        faculty[week_idx][(d + 1) % faculty_len].to_string(),
+                    ]
+                },
+                drill2: if day_num < 15 {
+                    vec![
+                        faculty[week_idx][(d + 2) % faculty_len].to_string(),
+                        faculty[week_idx][(d + 3) % faculty_len].to_string(),
+                        faculty[week_idx][(d + 1) % faculty_len].to_string(),
+                    ]
+                } else {
+                    vec![
+                        faculty[week_idx][(d + 1) % faculty_len].to_string(),
+                        faculty[week_idx][(d + 2) % faculty_len].to_string(),
+                    ]
+                },
+                noon_optional1: faculty[0][(d + 2) % faculty_len].to_string(),
+                noon_optional2: Some(faculty[0][(d + 3) % faculty_len].to_string()),
+                noon_optional1_title: String::from(""),
+                noon_optional2_title: None,
+                lecture: faculty[0][(d + 0) % faculty_len].to_string(),
                 lecture_title: match day_num {
                     1 => String::from("Lecture on Accents"),
                     2..28 => format!(
@@ -137,7 +162,7 @@ pub fn create_summer(start_date: &str, holidays: Vec<&str>, faculty: Vec<&str>) 
                     ),
                     _ => String::from(""),
                 },
-                voc_notes: faculty[(d + 1) % faculty_len].to_string(),
+                voc_notes: faculty[0][(d + 1) % faculty_len].to_string(),
                 friday_review1: if (these_days.weekday() == Weekday::Thursday
                     && summer
                         .holidays
@@ -145,8 +170,8 @@ pub fn create_summer(start_date: &str, holidays: Vec<&str>, faculty: Vec<&str>) 
                     || these_days.weekday() == Weekday::Friday
                 {
                     vec![
-                        faculty[(d + 0) % faculty_len].to_string(),
-                        faculty[(d + 1) % faculty_len].to_string(),
+                        faculty[0][(d + 0) % faculty_len].to_string(),
+                        faculty[0][(d + 1) % faculty_len].to_string(),
                     ]
                 } else {
                     vec![]
@@ -158,11 +183,11 @@ pub fn create_summer(start_date: &str, holidays: Vec<&str>, faculty: Vec<&str>) 
                     || these_days.weekday() == Weekday::Friday
                 {
                     vec![
-                        faculty[(d + 2) % faculty_len].to_string(),
+                        faculty[0][(d + 2) % faculty_len].to_string(),
                         if day_num < 15 {
-                            faculty[(d + 3) % faculty_len].to_string()
+                            faculty[0][(d + 3) % faculty_len].to_string()
                         } else {
-                            faculty[(d + 0) % faculty_len].to_string()
+                            faculty[0][(d + 0) % faculty_len].to_string()
                         },
                     ]
                 } else {
@@ -174,6 +199,10 @@ pub fn create_summer(start_date: &str, holidays: Vec<&str>, faculty: Vec<&str>) 
         }
 
         these_days = these_days.checked_add(one_day).unwrap();
+        if these_days.weekday() == Weekday::Monday {
+            week_idx += 1;
+            faculty_len = faculty[week_idx].len();
+        }
     }
 
     Some(summer)
@@ -333,7 +362,19 @@ mod tests {
     fn make_schedule() {
         let start = "2025-06-09";
         let holidays = vec!["2025-06-19", "2025-07-04"];
-        let faculty = vec!["BP", "JM", "HH", "EBH"];
+        let faculty = vec![
+            vec!["BP", "JM", "HH", "EBH"],
+            vec!["BP", "JM", "HH", "EBH"],
+            vec!["BP", "JM", "HH", "EBH"],
+            vec!["BP", "JM", "EBH"],
+            vec!["BP", "JM", "EBH"],
+            vec!["BP", "JM", "EBH"],
+            vec!["BP", "JM", "EBH"],
+            vec!["BP", "JM", "EBH"],
+            vec!["BP", "JM", "EBH"],
+            vec!["BP", "JM", "EBH"],
+            vec!["BP", "JM", "EBH"],
+        ];
         let s = create_summer(start, holidays, faculty).unwrap();
         for a in s.days_array {
             println!("{} {}", a.day, get_weekday(a.date.weekday()));
