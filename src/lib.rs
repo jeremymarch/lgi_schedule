@@ -18,15 +18,16 @@ pub struct Day {
     pub quiz_grader: String,
     pub drill1: Vec<String>,
     pub drill2: Vec<String>,
-    pub noon_optional1: String,
+    pub noon_optional1: Option<String>,
     pub noon_optional2: Option<String>,
-    pub noon_optional1_title: String,
+    pub noon_optional1_title: Option<String>,
     pub noon_optional2_title: Option<String>,
     pub lecture: String,
     pub lecture_title: String,
     pub voc_notes: String,
     pub friday_review1: Vec<String>,
     pub friday_review2: Vec<String>,
+    pub other: Option<String>,
 }
 
 pub trait SgiDay {
@@ -93,15 +94,20 @@ pub fn create_summer(
                 quiz_grader: String::from(""),
                 drill1: vec![],
                 drill2: vec![],
-                noon_optional1: String::from(""),
+                noon_optional1: None,
                 noon_optional2: None,
-                noon_optional1_title: String::from(""),
+                noon_optional1_title: None,
                 noon_optional2_title: None,
                 lecture: String::from(""),
                 lecture_title: String::from(""),
                 voc_notes: String::from(""),
                 friday_review1: vec![],
                 friday_review2: vec![],
+                other: match these_days.weekday() {
+                    Weekday::Saturday => Some(String::from("Rest and Study")),
+                    Weekday::Sunday => Some(String::from("Review")),
+                    _ => Some(String::from("Holiday, rest and study")),
+                },
             };
 
             summer.days_array.push(day); //Box::new(day));
@@ -152,11 +158,15 @@ pub fn create_summer(
                         faculty[week_idx][(d + 2) % faculty_len].to_string(),
                     ]
                 },
-                noon_optional1: faculty[0][(d + 2) % faculty_len].to_string(),
-                noon_optional2: Some(faculty[0][(d + 3) % faculty_len].to_string()),
-                noon_optional1_title: String::from(""),
-                noon_optional2_title: None,
-                lecture: faculty[0][(d + 0) % faculty_len].to_string(),
+                noon_optional1: Some(faculty[0][(d + 2) % faculty_len].to_string()),
+                noon_optional2: if faculty_len > 3 {
+                    Some(faculty[week_idx][(d + 3) % faculty_len].to_string())
+                } else {
+                    Some(faculty[week_idx][(d + 1) % faculty_len].to_string())
+                },
+                noon_optional1_title: Some(String::from("Grammar")),
+                noon_optional2_title: Some(String::from("Sight")),
+                lecture: faculty[week_idx][(d + 0) % faculty_len].to_string(),
                 lecture_title: match day_num {
                     1 => String::from("Lecture on Accents"),
                     2..27 => format!(
@@ -175,7 +185,7 @@ pub fn create_summer(
                     ),
                     _ => String::from(""),
                 },
-                voc_notes: faculty[0][(d + 1) % faculty_len].to_string(),
+                voc_notes: faculty[week_idx][(d + 1) % faculty_len].to_string(),
                 friday_review1: if (these_days.weekday() == Weekday::Thursday
                     && summer
                         .holidays
@@ -208,6 +218,7 @@ pub fn create_summer(
                 } else {
                     vec![]
                 },
+                other: None,
             };
             day_num += 1;
             summer.days_array.push(day); //Box::new(day));
