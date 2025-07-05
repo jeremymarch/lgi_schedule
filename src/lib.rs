@@ -138,23 +138,40 @@ pub struct Day {
     pub day: u32,
     #[serde(rename = "@date")]
     pub date: Zoned,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub day_one_lectures: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub exam: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub morning_optional: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub quiz_grader: Option<String>,
+    #[serde(default)]
     pub drill1: Vec<String>,
+    #[serde(default)]
     pub drill2: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub noon_optional1: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub noon_optional2: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub noon_optional1_title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub noon_optional2_title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub lecture: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub lecture_title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub voc_notes: Option<String>,
+    #[serde(default)]
     pub friday_review1: Vec<String>,
+    #[serde(default)]
     pub friday_review2: Vec<String>,
     //pub sunday_review: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub other: Option<String>,
+    #[serde(default)]
     pub test: Vec<LgiClass>,
 }
 
