@@ -33,8 +33,107 @@ pub struct Summer {
     pub days: Vec<Day>, //Vec<Box<dyn SgiDay>>,
 }
 
+impl Summer {
+    fn get_seqs(&self, week: u32) -> Vec<(String, Vec<String>)> {
+        let mut collector: HashMap<String, Vec<String>> = HashMap::new();
+
+        let mut holiday: Option<usize> = None;
+        for (i, day) in self.days.iter().enumerate() {
+            if day.week == week {
+                if let Some(_exam_fac) = day.exam.clone() {
+                    // if let Some(fac_vector) = collector.get_mut(&exam_fac) {
+                    //     fac_vector.push(String::from("Exam"));
+                    // } else {
+                    //     collector.insert(exam_fac, vec![String::from("Exam")]);
+                    // }
+                    continue;
+                }
+
+                //add "OFF" to each faculty for holidays
+                if day.day == 0
+                    && day.date.weekday() != Weekday::Saturday
+                    && day.date.weekday() != Weekday::Sunday
+                {
+                    holiday = Some(i);
+                }
+
+                if let Some(exam_fac) = day.morning_optional.clone() {
+                    if let Some(fac_vector) = collector.get_mut(&exam_fac) {
+                        fac_vector.push(String::from("MO"));
+                    } else {
+                        collector.insert(exam_fac, vec![String::from("MO")]);
+                    }
+                }
+
+                let drill1 = day.get_drill1();
+                let fac_count = drill1.len();
+                for (i, d1_fac) in drill1.clone().iter().enumerate() {
+                    let group = match i {
+                        0 => "E",
+                        1 => {
+                            if fac_count > 2 {
+                                "F/G"
+                            } else {
+                                "F"
+                            }
+                        }
+                        _ => "H",
+                    };
+                    if let Some(fac_vector) = collector.get_mut(d1_fac.as_str()) {
+                        fac_vector.push(String::from(group));
+                    } else {
+                        collector.insert(d1_fac.to_owned(), vec![String::from(group)]);
+                    }
+                }
+
+                if let Some(exam_fac) = day.quiz_grader.clone() {
+                    if let Some(fac_vector) = collector.get_mut(&exam_fac) {
+                        fac_vector.push(String::from("QUIZ"));
+                    } else {
+                        collector.insert(exam_fac, vec![String::from("QUIZ")]);
+                    }
+                }
+
+                let drill2 = day.get_drill2();
+                let fac_count = drill2.len();
+                for (i, d2_fac) in drill2.clone().iter().enumerate() {
+                    let group = match i {
+                        0 => "E",
+                        1 => {
+                            if fac_count > 2 {
+                                "F/G"
+                            } else {
+                                "F"
+                            }
+                        }
+                        _ => "H",
+                    };
+                    if let Some(fac_vector) = collector.get_mut(d2_fac.as_str()) {
+                        fac_vector.push(String::from(group));
+                    } else {
+                        collector.insert(d2_fac.to_owned(), vec![String::from(group)]);
+                    }
+                }
+            }
+        }
+
+        let mut ret: Vec<(String, Vec<String>)> = vec![];
+        for (key, value) in collector.into_iter() {
+            if let Some(h) = holiday {
+                //add "off" to each fac at correct spot to show holiday
+            }
+            ret.push((key, value));
+        }
+        ret.sort_by(|a, b| a.0.cmp(&b.0));
+
+        ret
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Day {
+    #[serde(rename = "@week")]
+    pub week: u32,
     #[serde(rename = "@day")]
     pub day: u32,
     #[serde(rename = "@date")]
@@ -73,6 +172,7 @@ impl SgiDay for Day {
     fn get_drill2(&self) -> Vec<String> {
         self.drill2.clone()
     }
+
     fn get_stats(&self) -> Vec<(String, u32)> {
         let mut fac_counts: HashMap<String, u32> = HashMap::new();
 
@@ -225,6 +325,7 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
 
         if day_num == 1 {
             let day = Day {
+                week: week_idx as u32 + 1,
                 day: day_num,
                 date: these_days.clone(),
                 day_one_lectures: Some(vec![
@@ -257,6 +358,7 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
             || summer.holidays.contains(&these_days)
         {
             let day = Day {
+                week: week_idx as u32 + 1,
                 day: 0,
                 date: these_days.clone(),
                 day_one_lectures: None,
@@ -285,6 +387,7 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
             summer.days.push(day); //Box::new(day));
         } else {
             let day = Day {
+                week: week_idx as u32 + 1,
                 day: day_num,
                 date: these_days.clone(),
                 day_one_lectures: None,
@@ -496,6 +599,9 @@ mod tests {
 
         let sxml = to_string(&s).unwrap();
         println!("{sxml}");
+
+        let seq = s.get_seqs(3);
+        println!("seq: {seq:?}");
 
         let s2 = from_str(&sxml).unwrap();
         assert_eq!(s, s2);
