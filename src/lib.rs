@@ -1,8 +1,6 @@
 use jiff::{ToSpan, Zoned, civil::Weekday};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-//use rand::seq::SliceRandom;
-//use rand::thread_rng;
 
 // enum SgiDays {
 //     DayOne,
@@ -15,6 +13,20 @@ pub struct LgiClass {
     pub title: String,
     pub instructor: String,
     pub handouts: Option<Vec<String>>,
+}
+
+pub struct Params<'a> {
+    pub faculty: Vec<Vec<&'a str>>,
+    pub start_date: &'a str,
+    pub holidays: Vec<&'a str>,
+    pub lecture_assignments: Vec<&'a str>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Summer {
+    pub start_date: Zoned,
+    pub holidays: Vec<Zoned>,
+    pub days_array: Vec<Day>, //Vec<Box<dyn SgiDay>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -129,10 +141,20 @@ impl SgiDay for Day {
             };
         }
 
+        if let Some(d) = &self.day_one_lectures {
+            for e in d {
+                match fac_counts.get(&e.to_owned()) {
+                    Some(f) => fac_counts.insert(e.to_owned(), f + 1),
+                    _ => fac_counts.insert(e.to_owned(), 1),
+                };
+            }
+        }
+
         let mut v: Vec<(String, u32)> = Vec::new();
         for (key, value) in fac_counts.into_iter() {
             v.push((key, value));
         }
+        v.sort_by(|a, b| a.0.cmp(&b.0));
         v
     }
 
@@ -141,19 +163,7 @@ impl SgiDay for Day {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Summer {
-    pub start_date: Zoned,
-    pub holidays: Vec<Zoned>,
-    pub days_array: Vec<Day>, //Vec<Box<dyn SgiDay>>,
-}
-
-pub fn create_summer(
-    // start_date: &str,
-    // holidays: Vec<&str>,
-    // faculty: Vec<Vec<&str>>,
-    params: &Params,
-) -> Option<Summer> {
+pub fn create_summer(params: &Params) -> Option<Summer> {
     let date_suffix = " 08:30[America/New_York]";
 
     //testxml();
@@ -207,7 +217,36 @@ pub fn create_summer(
             || these_days.weekday() == Weekday::Friday
             || day_num == 27;
 
-        if these_days.weekday() == Weekday::Saturday
+        if day_num == 1 {
+            let day = Day {
+                day_one_lectures: Some(vec![
+                    params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
+                    params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
+                    params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
+                ]),
+                exam: None,
+                day: day_num,
+                date: these_days.clone(),
+                morning_optional: None,
+                quiz_grader: None,
+                drill1: vec![],
+                drill2: vec![],
+                noon_optional1: None,
+                noon_optional2: None,
+                noon_optional1_title: None,
+                noon_optional2_title: None,
+                lecture: None,
+                lecture_title: None,
+                voc_notes: None,
+                friday_review1: vec![],
+                friday_review2: vec![],
+                other: None,
+                test: vec![],
+            };
+
+            day_num += 1;
+            summer.days_array.push(day); //Box::new(day));
+        } else if these_days.weekday() == Weekday::Saturday
             || these_days.weekday() == Weekday::Sunday
             || summer.holidays.contains(&these_days)
         {
@@ -240,15 +279,7 @@ pub fn create_summer(
             summer.days_array.push(day); //Box::new(day));
         } else {
             let day = Day {
-                day_one_lectures: if day_num == 1 {
-                    Some(vec![
-                        params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
-                        params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
-                        params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
-                    ])
-                } else {
-                    None
-                },
+                day_one_lectures: None,
                 exam: if is_exam {
                     Some(String::from("JM"))
                 } else {
@@ -345,7 +376,11 @@ pub fn create_summer(
                         _ => None,
                     }
                 },
-                voc_notes: Some(params.faculty[week_idx][(d + 1) % faculty_len].to_string()),
+                voc_notes: if is_friday_review {
+                    None
+                } else {
+                    Some(params.faculty[week_idx][(d + 1) % faculty_len].to_string())
+                },
                 friday_review1: if is_friday_review {
                     vec![
                         params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
@@ -387,33 +422,6 @@ pub fn create_summer(
     Some(summer)
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-struct Item {
-    name: String,
-    source: String,
-}
-
-// pub fn testxml() {
-//     let src = r#"<?xml version="1.0" encoding="UTF-8"?><Item><name>Banana</name><source>Store</source></Item>"#;
-//     let should_be = Item {
-//         name: "Banana".to_string(),
-//         source: "Store".to_string(),
-//     };
-
-//     let item: Item = from_str(src).unwrap();
-// }
-
-// fn make_schedule(params: Params) {
-//     let groups = vec!["E", "F/G", "H"];
-//     let faculty = vec!["JM", "HH", "BP", "EBH"];
-//     let days = 4;
-//     let hours = 2;
-
-//     let hours: Vec<String> = vec![];
-//     let num = days * 2 * groups.len();
-//     //for h in num {}
-// }
-
 pub fn get_weekday(w: Weekday) -> String {
     match w {
         Weekday::Monday => String::from("Monday"),
@@ -426,12 +434,20 @@ pub fn get_weekday(w: Weekday) -> String {
     }
 }
 
-pub struct Params<'a> {
-    pub faculty: Vec<Vec<&'a str>>,
-    pub start_date: &'a str,
-    pub holidays: Vec<&'a str>,
-    pub lecture_assignments: Vec<String>,
-}
+// #[derive(Debug, Serialize, Deserialize, PartialEq)]
+// struct Item {
+//     name: String,
+//     source: String,
+// }
+// pub fn testxml() {
+//     let src = r#"<?xml version="1.0" encoding="UTF-8"?><Item><name>Banana</name><source>Store</source></Item>"#;
+//     let should_be = Item {
+//         name: "Banana".to_string(),
+//         source: "Store".to_string(),
+//     };
+
+//     let item: Item = from_str(src).unwrap();
+// }
 
 #[cfg(test)]
 mod tests {
@@ -439,7 +455,7 @@ mod tests {
 
     #[test]
     fn make_schedule() {
-        //let start = "2025-06-09";
+        let start_date = "2025-06-09";
         let holidays = vec!["2025-06-19", "2025-07-04"];
         let faculty = vec![
             vec!["BP", "JM", "HH", "EBH"],
@@ -455,11 +471,16 @@ mod tests {
             vec!["BP", "JM", "EBH"],
         ];
 
+        let lectures = vec![
+            "EBH", "JM", "HH", "EBH", "HH", "JM", "BP", "HH", "JM", "HH", "BP", "EBH", "JM", "EBH",
+            "JM", "BP", "EBH", "BP", "JM", "EBH", "BP", "EBH", "JM",
+        ];
+
         let p = Params {
             faculty,
-            start_date: "2025-06-09",
+            start_date,
             holidays,
-            lecture_assignments: vec![],
+            lecture_assignments: lectures,
         };
 
         let s = create_summer(&p).unwrap();
