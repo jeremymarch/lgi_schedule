@@ -1,5 +1,6 @@
-use jiff::{civil::Weekday, ToSpan, Zoned};
+use jiff::{ToSpan, Zoned, civil::Weekday};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 //use rand::seq::SliceRandom;
 //use rand::thread_rng;
 
@@ -10,32 +11,134 @@ use serde::{Deserialize, Serialize};
 // }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct LgiClass {
+    pub title: String,
+    pub instructor: String,
+    pub handouts: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Day {
+    pub day_one_lectures: Option<Vec<String>>,
     pub exam: Option<String>,
     pub day: u32,
     pub date: Zoned,
     pub morning_optional: Option<String>,
-    pub quiz_grader: String,
+    pub quiz_grader: Option<String>,
     pub drill1: Vec<String>,
     pub drill2: Vec<String>,
     pub noon_optional1: Option<String>,
     pub noon_optional2: Option<String>,
     pub noon_optional1_title: Option<String>,
     pub noon_optional2_title: Option<String>,
-    pub lecture: String,
-    pub lecture_title: String,
-    pub voc_notes: String,
+    pub lecture: Option<String>,
+    pub lecture_title: Option<String>,
+    pub voc_notes: Option<String>,
     pub friday_review1: Vec<String>,
     pub friday_review2: Vec<String>,
+    //pub sunday_review: Option<String>,
     pub other: Option<String>,
+    pub test: Vec<LgiClass>,
 }
 
 pub trait SgiDay {
-    fn get_drills(&self);
+    fn get_drill1(&self) -> Vec<String>;
+    fn get_drill2(&self) -> Vec<String>;
+    fn get_stats(&self) -> Vec<(String, u32)>;
+    fn validate(&self) -> bool;
 }
 
 impl SgiDay for Day {
-    fn get_drills(&self) {}
+    fn get_drill1(&self) -> Vec<String> {
+        self.drill1.clone()
+    }
+    fn get_drill2(&self) -> Vec<String> {
+        self.drill2.clone()
+    }
+    fn get_stats(&self) -> Vec<(String, u32)> {
+        let mut fac_counts: HashMap<String, u32> = HashMap::new();
+
+        if let Some(e) = self.exam.as_ref() {
+            match fac_counts.get(&e.to_owned()) {
+                Some(&f) => fac_counts.insert(e.to_owned(), f + 1),
+                _ => fac_counts.insert(e.to_owned(), 1),
+            };
+        }
+        if let Some(e) = self.quiz_grader.as_ref() {
+            match fac_counts.get(&e.to_owned()) {
+                Some(&f) => fac_counts.insert(e.to_owned(), f + 1),
+                _ => fac_counts.insert(e.to_owned(), 1),
+            };
+        }
+        if let Some(e) = self.morning_optional.as_ref() {
+            match fac_counts.get(&e.to_owned()) {
+                Some(&f) => fac_counts.insert(e.to_owned(), f + 1),
+                _ => fac_counts.insert(e.to_owned(), 1),
+            };
+        }
+        if let Some(e) = self.noon_optional1.as_ref() {
+            match fac_counts.get(&e.to_owned()) {
+                Some(&f) => fac_counts.insert(e.to_owned(), f + 1),
+                _ => fac_counts.insert(e.to_owned(), 1),
+            };
+        }
+        if let Some(e) = self.noon_optional2.as_ref() {
+            match fac_counts.get(&e.to_owned()) {
+                Some(&f) => fac_counts.insert(e.to_owned(), f + 1),
+                _ => fac_counts.insert(e.to_owned(), 1),
+            };
+        }
+        if let Some(e) = self.lecture.as_ref() {
+            match fac_counts.get(&e.to_owned()) {
+                Some(&f) => fac_counts.insert(e.to_owned(), f + 1),
+                _ => fac_counts.insert(e.to_owned(), 1),
+            };
+        }
+        if let Some(e) = self.voc_notes.as_ref() {
+            match fac_counts.get(&e.to_owned()) {
+                Some(&f) => fac_counts.insert(e.to_owned(), f + 1),
+                _ => fac_counts.insert(e.to_owned(), 1),
+            };
+        }
+
+        for e in self.get_drill1() {
+            match fac_counts.get(&e) {
+                Some(f) => fac_counts.insert(e, f + 1),
+                _ => fac_counts.insert(e, 1),
+            };
+        }
+
+        for e in self.get_drill2() {
+            match fac_counts.get(&e) {
+                Some(f) => fac_counts.insert(e, f + 1),
+                _ => fac_counts.insert(e, 1),
+            };
+        }
+
+        for e in &self.friday_review1 {
+            match fac_counts.get(&e.to_owned()) {
+                Some(f) => fac_counts.insert(e.to_owned(), f + 1),
+                _ => fac_counts.insert(e.to_owned(), 1),
+            };
+        }
+
+        for e in &self.friday_review2 {
+            match fac_counts.get(&e.to_owned()) {
+                Some(f) => fac_counts.insert(e.to_owned(), f + 1),
+                _ => fac_counts.insert(e.to_owned(), 1),
+            };
+        }
+
+        let mut v: Vec<(String, u32)> = Vec::new();
+        for (key, value) in fac_counts.into_iter() {
+            v.push((key, value));
+        }
+        v
+    }
+
+    fn validate(&self) -> bool {
+        true
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -46,21 +149,26 @@ pub struct Summer {
 }
 
 pub fn create_summer(
-    start_date: &str,
-    holidays: Vec<&str>,
-    faculty: Vec<Vec<&str>>,
+    // start_date: &str,
+    // holidays: Vec<&str>,
+    // faculty: Vec<Vec<&str>>,
+    params: &Params,
 ) -> Option<Summer> {
     let date_suffix = " 08:30[America/New_York]";
 
+    //testxml();
+
     let mut holidays_zoned: Vec<Zoned> = vec![];
-    for h in holidays {
-        if let Ok(hz) = format!("{}{}", h, date_suffix).parse() {
+    for h in params.holidays.clone() {
+        if let Ok(hz) = format!("{h}{date_suffix}").parse() {
             holidays_zoned.push(hz);
         }
     }
 
     let mut summer = Summer {
-        start_date: format!("{}{}", start_date, date_suffix).parse().unwrap(),
+        start_date: format!("{}{date_suffix}", params.start_date)
+            .parse()
+            .unwrap(),
         holidays: holidays_zoned,
         days_array: vec![],
     };
@@ -80,27 +188,45 @@ pub fn create_summer(
     let mut day_num = 1;
     let mut lecture_num: u32 = 0;
     let mut week_idx = 0;
-    let mut faculty_len = faculty[week_idx].len();
+    let mut faculty_len = params.faculty[week_idx].len();
     for d in 0..=70 {
+        let is_exam = ((these_days.weekday() == Weekday::Tuesday
+            && summer
+                .holidays
+                .contains(&these_days.checked_sub(one_day).unwrap()))
+            || these_days.weekday() == Weekday::Monday)
+            && day_num != 1
+            && day_num != 24
+            && day_num != 34
+            && day_num != 44;
+
+        let is_friday_review = (these_days.weekday() == Weekday::Thursday
+            && summer
+                .holidays
+                .contains(&these_days.checked_add(one_day).unwrap()))
+            || these_days.weekday() == Weekday::Friday
+            || day_num == 27;
+
         if these_days.weekday() == Weekday::Saturday
             || these_days.weekday() == Weekday::Sunday
             || summer.holidays.contains(&these_days)
         {
             let day = Day {
+                day_one_lectures: None,
                 exam: None,
                 day: 0,
                 date: these_days.clone(),
                 morning_optional: None,
-                quiz_grader: String::from(""),
+                quiz_grader: None,
                 drill1: vec![],
                 drill2: vec![],
                 noon_optional1: None,
                 noon_optional2: None,
                 noon_optional1_title: None,
                 noon_optional2_title: None,
-                lecture: String::from(""),
-                lecture_title: String::from(""),
-                voc_notes: String::from(""),
+                lecture: None,
+                lecture_title: None,
+                voc_notes: None,
                 friday_review1: vec![],
                 friday_review2: vec![],
                 other: match these_days.weekday() {
@@ -108,117 +234,144 @@ pub fn create_summer(
                     Weekday::Sunday => Some(String::from("Review")),
                     _ => Some(String::from("Holiday, rest and study")),
                 },
+                test: vec![],
             };
 
             summer.days_array.push(day); //Box::new(day));
         } else {
             let day = Day {
-                exam: if these_days.weekday() == Weekday::Monday
-                    && day_num != 24
-                    && day_num != 34
-                    && day_num != 44
-                {
+                day_one_lectures: if day_num == 1 {
+                    Some(vec![
+                        params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
+                    ])
+                } else {
+                    None
+                },
+                exam: if is_exam {
                     Some(String::from("JM"))
                 } else {
                     None
                 },
                 day: day_num,
                 date: these_days.clone(),
-                morning_optional: if faculty_len > 3 {
-                    Some(faculty[week_idx][(d + 3) % faculty_len].to_string())
+                morning_optional: if day_num < 6 || is_exam {
+                    None
+                } else if faculty_len > 3 {
+                    Some(params.faculty[week_idx][(d + 3) % faculty_len].to_string())
                 } else {
-                    Some(faculty[week_idx][(d + 2) % faculty_len].to_string())
+                    Some(params.faculty[week_idx][(d + 2) % faculty_len].to_string())
                 },
-                quiz_grader: if faculty_len > 3 {
-                    faculty[week_idx][(d + 0) % faculty_len].to_string()
+                quiz_grader: if is_exam {
+                    None
                 } else {
-                    faculty[week_idx][(d + 0) % faculty_len].to_string()
+                    Some(params.faculty[week_idx][(d + 0) % faculty_len].to_string())
                 },
-                drill1: if faculty_len > 3 {
+                drill1: if is_exam {
+                    vec![]
+                } else if faculty_len > 3 {
                     vec![
-                        faculty[week_idx][(d + 0) % faculty_len].to_string(),
-                        faculty[week_idx][(d + 1) % faculty_len].to_string(),
-                        faculty[week_idx][(d + 2) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
                     ]
                 } else {
                     vec![
-                        faculty[week_idx][(d + 0) % faculty_len].to_string(),
-                        faculty[week_idx][(d + 1) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
                     ]
                 },
-                drill2: if faculty_len > 3 {
+                drill2: if is_exam {
+                    vec![]
+                } else if faculty_len > 3 {
                     vec![
-                        faculty[week_idx][(d + 2) % faculty_len].to_string(),
-                        faculty[week_idx][(d + 3) % faculty_len].to_string(),
-                        faculty[week_idx][(d + 1) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 3) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
                     ]
                 } else {
                     vec![
-                        faculty[week_idx][(d + 1) % faculty_len].to_string(),
-                        faculty[week_idx][(d + 2) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
                     ]
                 },
-                noon_optional1: Some(faculty[0][(d + 2) % faculty_len].to_string()),
-                noon_optional2: if faculty_len > 3 {
-                    Some(faculty[week_idx][(d + 3) % faculty_len].to_string())
+                noon_optional1: if is_exam {
+                    None
                 } else {
-                    Some(faculty[week_idx][(d + 1) % faculty_len].to_string())
+                    Some(params.faculty[week_idx][(d + 2) % faculty_len].to_string())
                 },
-                noon_optional1_title: Some(String::from("Grammar")),
-                noon_optional2_title: Some(String::from("Sight")),
-                lecture: faculty[week_idx][(d + 0) % faculty_len].to_string(),
-                lecture_title: match day_num {
-                    1 => String::from("Lecture on Accents"),
-                    2..27 => format!(
-                        "Lecture on Unit {}",
-                        if (these_days.weekday() == Weekday::Thursday
-                            && summer
-                                .holidays
-                                .contains(&these_days.checked_add(one_day).unwrap()))
-                            || these_days.weekday() == Weekday::Friday
-                        {
-                            0
-                        } else {
-                            lecture_num += 1;
-                            lecture_num
-                        }
-                    ),
-                    _ => String::from(""),
+                noon_optional2: if is_exam {
+                    None
+                } else if faculty_len > 3 {
+                    Some(params.faculty[week_idx][(d + 3) % faculty_len].to_string())
+                } else {
+                    Some(params.faculty[week_idx][(d + 1) % faculty_len].to_string())
                 },
-                voc_notes: faculty[week_idx][(d + 1) % faculty_len].to_string(),
-                friday_review1: if (these_days.weekday() == Weekday::Thursday
-                    && summer
-                        .holidays
-                        .contains(&these_days.checked_add(one_day).unwrap()))
-                    || these_days.weekday() == Weekday::Friday
-                    || day_num == 27
-                {
+                noon_optional1_title: if is_exam {
+                    None
+                } else {
+                    Some(String::from("Grammar"))
+                },
+                noon_optional2_title: if is_exam {
+                    None
+                } else {
+                    Some(String::from("Sight"))
+                },
+                lecture: if is_friday_review {
+                    None
+                } else {
+                    Some(params.faculty[week_idx][(d + 0) % faculty_len].to_string())
+                },
+                lecture_title: if is_friday_review {
+                    None
+                } else {
+                    match day_num {
+                        1 => Some(String::from("Lecture on Accents")),
+                        2..27 => Some(format!(
+                            "Lecture on Unit {}",
+                            if (these_days.weekday() == Weekday::Thursday
+                                && summer
+                                    .holidays
+                                    .contains(&these_days.checked_add(one_day).unwrap()))
+                                || these_days.weekday() == Weekday::Friday
+                            {
+                                0
+                            } else {
+                                lecture_num += 1;
+                                lecture_num
+                            }
+                        )),
+                        _ => None,
+                    }
+                },
+                voc_notes: Some(params.faculty[week_idx][(d + 1) % faculty_len].to_string()),
+                friday_review1: if is_friday_review {
                     vec![
-                        faculty[week_idx][(d + 0) % faculty_len].to_string(),
-                        faculty[week_idx][(d + 1) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
                     ]
                 } else {
                     vec![]
                 },
-                friday_review2: if (these_days.weekday() == Weekday::Thursday
-                    && summer
-                        .holidays
-                        .contains(&these_days.checked_add(one_day).unwrap()))
-                    || these_days.weekday() == Weekday::Friday
-                    || day_num == 27
-                {
+                friday_review2: if is_friday_review {
                     vec![
-                        faculty[week_idx][(d + 2) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
                         if faculty_len > 3 {
-                            faculty[week_idx][(d + 3) % faculty_len].to_string()
+                            params.faculty[week_idx][(d + 3) % faculty_len].to_string()
                         } else {
-                            faculty[week_idx][(d + 0) % faculty_len].to_string()
+                            params.faculty[week_idx][(d + 0) % faculty_len].to_string()
                         },
                     ]
                 } else {
                     vec![]
                 },
                 other: None,
+                test: vec![LgiClass {
+                    title: String::from(""),
+                    instructor: String::from(""),
+                    handouts: Some(vec![String::from("")]),
+                }],
             };
             day_num += 1;
             summer.days_array.push(day); //Box::new(day));
@@ -227,146 +380,39 @@ pub fn create_summer(
         these_days = these_days.checked_add(one_day).unwrap();
         if these_days.weekday() == Weekday::Monday {
             week_idx += 1;
-            faculty_len = faculty[week_idx].len();
+            faculty_len = params.faculty[week_idx].len();
         }
     }
 
     Some(summer)
 }
 
-pub fn t1() {
-    let groups = vec!["E", "F/G", "H"];
-    let faculty = vec!["JM", "HH", "BP", "EBH"];
-    let days = 4;
-    let hours = 2;
-
-    let mut drill_hours: Vec<Vec<String>> = vec![];
-    for n in 0..(days * hours) {
-        let mut gr: Vec<String> = vec![];
-        for g in &groups {
-            gr = vec![];
-            for f in &faculty {
-                //print!(format!(" {} ", f));
-                gr.push(f.to_string());
-            }
-        }
-        drill_hours.push(gr);
-    }
-
-    for (i, n) in drill_hours.iter().enumerate() {
-        for (j, g) in groups.iter().enumerate() {
-            println!("{} - {}", g, n[j]);
-        }
-    }
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+struct Item {
+    name: String,
+    source: String,
 }
 
-/*
-pub fn add() {
-    let width = 8;
-    let height = 4;
-    let mut p = vec!["JM", "HH", "BP", "EB"];
-    //let mut grid = vec![vec![0; width]; height];
-    let mut a: Vec<Vec<String>> = vec![vec![String::from(""); width]; height];
+// pub fn testxml() {
+//     let src = r#"<?xml version="1.0" encoding="UTF-8"?><Item><name>Banana</name><source>Store</source></Item>"#;
+//     let should_be = Item {
+//         name: "Banana".to_string(),
+//         source: "Store".to_string(),
+//     };
 
-    'outer: loop {
-        for j in 0..width {
-            //let s = format!("{}:{}", i + 1, j + 1);
-            p.shuffle(&mut thread_rng());
-            a[0][j] = p[0].to_string();
-            a[1][j] = p[1].to_string();
-            a[2][j] = p[2].to_string();
-            a[3][j] = p[3].to_string();
-        }
+//     let item: Item = from_str(src).unwrap();
+// }
 
-        // for k in 0..width {
-        //     if a[0][k] == a[1][k] || a[1][k] == a[2][k] || a[2][k] == a[3][k] || a[0][k] == a[2][k] || a[1][k] == a[3][k] || a[0][k] == a[3][k] {
-        //         continue;
-        //     }
-        //     else {
-        //         break 'outer;
-        //     }
-        // }
-        let mut row = 0;
-        for l in 0..height {
-            if a[l][0] != a[l][1]
-                && a[l][2] != a[l][3]
-                && a[l][4] != a[l][5]
-                && a[l][6] != a[l][7]
-                && a[l][1] != a[l][2]
-                && a[l][3] != a[l][4]
-                && a[l][5] != a[l][6]
-            {
-                row += 1;
-            }
-        }
+// fn make_schedule(params: Params) {
+//     let groups = vec!["E", "F/G", "H"];
+//     let faculty = vec!["JM", "HH", "BP", "EBH"];
+//     let days = 4;
+//     let hours = 2;
 
-        //each only does two
-        for l in 0..height {
-            let mut jm = 0;
-            let mut hh = 0;
-            let mut bp = 0;
-            let mut ebh = 0;
-            for w in 0..width {
-                match a[l][w].as_str() {
-                    "JM" => jm += 1,
-                    "BP" => bp += 1,
-                    "HH" => hh += 1,
-                    "EB" => ebh += 1,
-                    _ => (),
-                }
-            }
-            if jm < 2 || hh < 2 || bp < 2 || ebh < 2 {
-                continue 'outer;
-            }
-        }
-
-        let mut jm = 0;
-        let mut hh = 0;
-        let mut bp = 0;
-        let mut ebh = 0;
-        for m in 0..height {
-            for n in 0..width {
-                if a[m][n] == "JM" {
-                    jm += 1;
-                } else if a[m][n] == "HH" {
-                    hh += 1;
-                } else if a[m][n] == "BP" {
-                    bp += 1;
-                } else if a[m][n] == "EB" {
-                    ebh += 1;
-                }
-            }
-        }
-        if row == 4 && jm == 8 && hh == 8 && bp == 8 && ebh == 8 {
-            break 'outer;
-        }
-    }
-
-    println!("{:?}", a[0]);
-    println!("{:?}", a[1]);
-    println!("{:?}", a[2]);
-    println!("{:?}", a[3]);
-}
-*/
-
-struct Params<'a> {
-    faculty: &'a [String],
-    groups: &'a [String],
-    state: Zoned,
-    holidays: &'a [Zoned],
-    lecture_assignments: &'a [String],
-}
-
-fn make_schedule(params: Params) {
-    let groups = vec!["E", "F/G", "H"];
-    let faculty = vec!["JM", "HH", "BP", "EBH"];
-    let days = 4;
-    let hours = 2;
-
-    let hours: Vec<String> = vec![];
-    let num = days * 2 * groups.len();
-    //for h in num {}
-}
+//     let hours: Vec<String> = vec![];
+//     let num = days * 2 * groups.len();
+//     //for h in num {}
+// }
 
 pub fn get_weekday(w: Weekday) -> String {
     match w {
@@ -380,13 +426,20 @@ pub fn get_weekday(w: Weekday) -> String {
     }
 }
 
+pub struct Params<'a> {
+    pub faculty: Vec<Vec<&'a str>>,
+    pub start_date: &'a str,
+    pub holidays: Vec<&'a str>,
+    pub lecture_assignments: Vec<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn make_schedule() {
-        let start = "2025-06-09";
+        //let start = "2025-06-09";
         let holidays = vec!["2025-06-19", "2025-07-04"];
         let faculty = vec![
             vec!["BP", "JM", "HH", "EBH"],
@@ -401,7 +454,15 @@ mod tests {
             vec!["BP", "JM", "EBH"],
             vec!["BP", "JM", "EBH"],
         ];
-        let s = create_summer(start, holidays, faculty).unwrap();
+
+        let p = Params {
+            faculty,
+            start_date: "2025-06-09",
+            holidays,
+            lecture_assignments: vec![],
+        };
+
+        let s = create_summer(&p).unwrap();
         for a in s.days_array {
             println!("{} {}", a.day, get_weekday(a.date.weekday()));
             println!("     {}    {}", a.drill1[0], a.drill2[0]);
@@ -413,12 +474,6 @@ mod tests {
     #[test]
     fn it_works() {
         //add();
-        //assert_eq!(result, 4);
-    }
-
-    #[test]
-    fn test1() {
-        t1();
         //assert_eq!(result, 4);
     }
 }
