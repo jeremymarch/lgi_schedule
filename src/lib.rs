@@ -1,4 +1,6 @@
 use jiff::{ToSpan, Zoned, civil::Weekday};
+use quick_xml::de::from_str;
+use quick_xml::se::to_string;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -8,7 +10,7 @@ use std::collections::HashMap;
 //     WeeksFourToSix,
 // }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct LgiClass {
     pub title: String,
     pub instructor: String,
@@ -22,19 +24,23 @@ pub struct Params<'a> {
     pub lecture_assignments: Vec<&'a str>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Summer {
+    #[serde(rename = "@startdate")]
     pub start_date: Zoned,
+    #[serde(rename = "@holidays")]
     pub holidays: Vec<Zoned>,
-    pub days_array: Vec<Day>, //Vec<Box<dyn SgiDay>>,
+    pub days: Vec<Day>, //Vec<Box<dyn SgiDay>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Day {
+    #[serde(rename = "@day")]
+    pub day: u32,
+    #[serde(rename = "@date")]
+    pub date: Zoned,
     pub day_one_lectures: Option<Vec<String>>,
     pub exam: Option<String>,
-    pub day: u32,
-    pub date: Zoned,
     pub morning_optional: Option<String>,
     pub quiz_grader: Option<String>,
     pub drill1: Vec<String>,
@@ -180,7 +186,7 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
             .parse()
             .unwrap(),
         holidays: holidays_zoned,
-        days_array: vec![],
+        days: vec![],
     };
 
     if summer.start_date.weekday() != Weekday::Monday {
@@ -219,14 +225,14 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
 
         if day_num == 1 {
             let day = Day {
+                day: day_num,
+                date: these_days.clone(),
                 day_one_lectures: Some(vec![
                     params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
                     params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
                     params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
                 ]),
                 exam: None,
-                day: day_num,
-                date: these_days.clone(),
                 morning_optional: None,
                 quiz_grader: None,
                 drill1: vec![],
@@ -245,16 +251,16 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
             };
 
             day_num += 1;
-            summer.days_array.push(day); //Box::new(day));
+            summer.days.push(day); //Box::new(day));
         } else if these_days.weekday() == Weekday::Saturday
             || these_days.weekday() == Weekday::Sunday
             || summer.holidays.contains(&these_days)
         {
             let day = Day {
-                day_one_lectures: None,
-                exam: None,
                 day: 0,
                 date: these_days.clone(),
+                day_one_lectures: None,
+                exam: None,
                 morning_optional: None,
                 quiz_grader: None,
                 drill1: vec![],
@@ -276,17 +282,17 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 test: vec![],
             };
 
-            summer.days_array.push(day); //Box::new(day));
+            summer.days.push(day); //Box::new(day));
         } else {
             let day = Day {
+                day: day_num,
+                date: these_days.clone(),
                 day_one_lectures: None,
                 exam: if is_exam {
                     Some(String::from("JM"))
                 } else {
                     None
                 },
-                day: day_num,
-                date: these_days.clone(),
                 morning_optional: if day_num < 6 || is_exam {
                     None
                 } else if faculty_len > 3 {
@@ -409,7 +415,7 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 }],
             };
             day_num += 1;
-            summer.days_array.push(day); //Box::new(day));
+            summer.days.push(day); //Box::new(day));
         }
 
         these_days = these_days.checked_add(one_day).unwrap();
@@ -418,6 +424,9 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
             faculty_len = params.faculty[week_idx].len();
         }
     }
+
+    // let sxml = to_string(&summer).unwrap();
+    // println!("{sxml}");
 
     Some(summer)
 }
@@ -484,12 +493,19 @@ mod tests {
         };
 
         let s = create_summer(&p).unwrap();
-        for a in s.days_array {
-            println!("{} {}", a.day, get_weekday(a.date.weekday()));
-            println!("     {}    {}", a.drill1[0], a.drill2[0]);
-            println!("     {}    {}", a.drill1[1], a.drill2[1]);
-            println!("     {}    {}", a.drill1[2], a.drill2[2])
-        }
+
+        let sxml = to_string(&s).unwrap();
+        println!("{sxml}");
+
+        let s2 = from_str(&sxml).unwrap();
+        assert_eq!(s, s2);
+
+        // for a in s.days_array {
+        //     println!("{} {}", a.day, get_weekday(a.date.weekday()));
+        //     println!("     {}    {}", a.drill1[0], a.drill2[0]);
+        //     println!("     {}    {}", a.drill1[1], a.drill2[1]);
+        //     println!("     {}    {}", a.drill1[2], a.drill2[2])
+        // }
     }
 
     #[test]

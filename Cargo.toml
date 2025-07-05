@@ -9,4 +9,4 @@ edition = "2024"
 #rand = "0.8.5"
 jiff = { version = "0.2.0", features = ["js", "serde"] }
 serde = { version = "1.0.219", features = ["derive"] }
-quick-xml = "0.38"
+quick-xml = { version = "0.38", features = ["serialize"] }
