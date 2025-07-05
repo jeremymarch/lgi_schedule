@@ -1,5 +1,6 @@
 use jiff::{ToSpan, Zoned, civil::Weekday};
 use quick_xml::de::from_str;
+use quick_xml::se::Serializer;
 use quick_xml::se::to_string;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -622,6 +623,14 @@ mod tests {
 
         let s2 = from_str(&sxml).unwrap();
         assert_eq!(s, s2);
+
+        let mut buffer = String::new();
+        let mut ser = Serializer::new(&mut buffer);
+        ser.indent(' ', 2);
+
+        s.serialize(ser).unwrap();
+
+        println!("{buffer}");
 
         // for a in s.days_array {
         //     println!("{} {}", a.day, get_weekday(a.date.weekday()));
