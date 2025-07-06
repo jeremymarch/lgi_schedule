@@ -1,7 +1,7 @@
 use jiff::{ToSpan, Zoned, civil::Weekday};
 use quick_xml::de::from_str;
 use quick_xml::se::Serializer;
-use quick_xml::se::to_string;
+//use quick_xml::se::to_string;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -41,11 +41,23 @@ pub struct Summer {
 }
 
 impl Summer {
-    fn get_seqs(&self, week: u32) -> Vec<(String, Vec<String>)> {
+    pub fn to_xml(&self) -> String {
+        let mut buffer = String::new();
+        let mut ser = Serializer::new(&mut buffer);
+        ser.indent(' ', 4);
+        self.serialize(ser).unwrap();
+        buffer
+    }
+
+    pub fn from_xml(s: String) -> Summer {
+        from_str(&s).unwrap()
+    }
+
+    pub fn get_seqs(&self, week: u32) -> Vec<(String, Vec<String>)> {
         let mut collector: HashMap<String, Vec<String>> = HashMap::new();
 
         //let mut holiday: Option<usize> = None;
-        for (i, day) in self.days.iter().enumerate() {
+        for day in self.days.iter() {
             if day.week == week {
                 if let Some(_exam_fac) = day.exam.clone() {
                     // if let Some(fac_vector) = collector.get_mut(&exam_fac) {
@@ -371,6 +383,7 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 day: day_num,
                 date: these_days.clone(),
                 day_one_lectures: Some(vec![
+                    #[allow(clippy::identity_op)]
                     params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
                     params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
                     params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
@@ -448,18 +461,21 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 quiz_grader: if is_exam {
                     None
                 } else {
+                    #[allow(clippy::identity_op)]
                     Some(params.faculty[week_idx][(d + 0) % faculty_len].to_string())
                 },
                 drill1: if is_exam {
                     vec![]
                 } else if faculty_len > 3 {
                     vec![
+                        #[allow(clippy::identity_op)]
                         params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
                         params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
                         params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
                     ]
                 } else {
                     vec![
+                        #[allow(clippy::identity_op)]
                         params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
                         params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
                     ]
@@ -503,6 +519,7 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 lecture: if is_friday_review {
                     None
                 } else {
+                    #[allow(clippy::identity_op)]
                     Some(params.faculty[week_idx][(d + 0) % faculty_len].to_string())
                 },
                 lecture_title: if is_friday_review {
@@ -534,6 +551,7 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 },
                 friday_review1: if is_friday_review {
                     vec![
+                        #[allow(clippy::identity_op)]
                         params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
                         params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
                     ]
@@ -546,6 +564,7 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                         if faculty_len > 3 {
                             params.faculty[week_idx][(d + 3) % faculty_len].to_string()
                         } else {
+                            #[allow(clippy::identity_op)]
                             params.faculty[week_idx][(d + 0) % faculty_len].to_string()
                         },
                     ]
@@ -570,9 +589,6 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
         }
     }
 
-    // let sxml = to_string(&summer).unwrap();
-    // println!("{sxml}");
-
     Some(summer)
 }
 
@@ -588,27 +604,12 @@ pub fn get_weekday(w: Weekday) -> String {
     }
 }
 
-// #[derive(Debug, Serialize, Deserialize, PartialEq)]
-// struct Item {
-//     name: String,
-//     source: String,
-// }
-// pub fn testxml() {
-//     let src = r#"<?xml version="1.0" encoding="UTF-8"?><Item><name>Banana</name><source>Store</source></Item>"#;
-//     let should_be = Item {
-//         name: "Banana".to_string(),
-//         source: "Store".to_string(),
-//     };
-
-//     let item: Item = from_str(src).unwrap();
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn make_schedule() {
+    fn xml_roundtrip() {
         let start_date = "2025-06-09";
         let holidays = vec!["2025-06-19", "2025-07-04"];
         let faculty = vec![
@@ -638,34 +639,45 @@ mod tests {
         };
 
         let s = create_summer(&p).unwrap();
+        let xml = s.to_xml();
+        //println!("{xml}");
 
-        // let sxml = to_string(&s).unwrap();
-        // println!("{sxml}");
-
-        let mut buffer = String::new();
-        let mut ser = Serializer::new(&mut buffer);
-        ser.indent(' ', 4);
-        s.serialize(ser).unwrap();
-        //println!("{buffer}");
-
-        //println!("num2: {}", s.faculty[2].faculty.len());
-        let seq = s.get_seqs(4);
-        println!("seq: {seq:?}");
-
-        let s2 = from_str(&buffer).unwrap();
+        let s2 = Summer::from_xml(xml);
         assert_eq!(s, s2);
-
-        // for a in s.days_array {
-        //     println!("{} {}", a.day, get_weekday(a.date.weekday()));
-        //     println!("     {}    {}", a.drill1[0], a.drill2[0]);
-        //     println!("     {}    {}", a.drill1[1], a.drill2[1]);
-        //     println!("     {}    {}", a.drill1[2], a.drill2[2])
-        // }
     }
 
     #[test]
-    fn it_works() {
-        //add();
-        //assert_eq!(result, 4);
+    fn test_get_seqs() {
+        let start_date = "2025-06-09";
+        let holidays = vec!["2025-06-19", "2025-07-04"];
+        let faculty = vec![
+            vec!["BP", "JM", "HH", "EBH"],
+            vec!["BP", "JM", "HH", "EBH"],
+            vec!["BP", "JM", "HH", "EBH"],
+            vec!["BP", "JM", "EBH"],
+            vec!["BP", "JM", "EBH"],
+            vec!["BP", "JM", "EBH"],
+            vec!["BP", "JM", "EBH"],
+            vec!["BP", "JM", "EBH"],
+            vec!["BP", "JM", "EBH"],
+            vec!["BP", "JM", "EBH"],
+            vec!["BP", "JM", "EBH"],
+        ];
+
+        let lectures = vec![
+            "EBH", "JM", "HH", "EBH", "HH", "JM", "BP", "HH", "JM", "HH", "BP", "EBH", "JM", "EBH",
+            "JM", "BP", "EBH", "BP", "JM", "EBH", "BP", "EBH", "JM",
+        ];
+
+        let p = Params {
+            faculty,
+            start_date,
+            holidays,
+            lecture_assignments: lectures,
+        };
+
+        let s = create_summer(&p).unwrap();
+        let seq = s.get_seqs(4);
+        println!("seq: {seq:?}");
     }
 }
