@@ -26,19 +26,25 @@ pub struct Params<'a> {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct FacultyWeek {
+    pub faculty: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Summer {
     #[serde(rename = "@startdate")]
     pub start_date: Zoned,
     #[serde(rename = "@holidays")]
     pub holidays: Vec<Zoned>,
     pub days: Vec<Day>, //Vec<Box<dyn SgiDay>>,
+    pub faculty: Vec<FacultyWeek>,
 }
 
 impl Summer {
     fn get_seqs(&self, week: u32) -> Vec<(String, Vec<String>)> {
         let mut collector: HashMap<String, Vec<String>> = HashMap::new();
 
-        let mut holiday: Option<usize> = None;
+        //let mut holiday: Option<usize> = None;
         for (i, day) in self.days.iter().enumerate() {
             if day.week == week {
                 if let Some(_exam_fac) = day.exam.clone() {
@@ -55,7 +61,14 @@ impl Summer {
                     && day.date.weekday() != Weekday::Saturday
                     && day.date.weekday() != Weekday::Sunday
                 {
-                    holiday = Some(i);
+                    for f in self.faculty[week as usize - 1].faculty.clone() {
+                        if let Some(fac_vector) = collector.get_mut(&f) {
+                            fac_vector.push(String::from("HOL"));
+                            fac_vector.push(String::from("HOL"));
+                        } else {
+                            collector.insert(f, vec![String::from("HOL"), String::from("HOL")]);
+                        }
+                    }
                 }
 
                 if let Some(exam_fac) = day.morning_optional.clone() {
@@ -120,9 +133,6 @@ impl Summer {
 
         let mut ret: Vec<(String, Vec<String>)> = vec![];
         for (key, value) in collector.into_iter() {
-            if let Some(h) = holiday {
-                //add "off" to each fac at correct spot to show holiday
-            }
             ret.push((key, value));
         }
         ret.sort_by(|a, b| a.0.cmp(&b.0));
@@ -287,6 +297,19 @@ impl SgiDay for Day {
     }
 }
 
+fn make_faculty(vv: Vec<Vec<&str>>) -> Vec<FacultyWeek> {
+    // .iter()
+    // .map(|inner| inner.iter().map(|s| s.to_string()).collect())
+    // .collect(),
+    let mut ret: Vec<FacultyWeek> = vec![];
+    for v in vv {
+        ret.push(FacultyWeek {
+            faculty: v.iter().map(|f| f.to_string()).collect(),
+        });
+    }
+    ret
+}
+
 pub fn create_summer(params: &Params) -> Option<Summer> {
     let date_suffix = " 08:30[America/New_York]";
 
@@ -305,6 +328,7 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
             .unwrap(),
         holidays: holidays_zoned,
         days: vec![],
+        faculty: make_faculty(params.faculty.clone()),
     };
 
     if summer.start_date.weekday() != Weekday::Monday {
@@ -615,22 +639,21 @@ mod tests {
 
         let s = create_summer(&p).unwrap();
 
-        let sxml = to_string(&s).unwrap();
-        println!("{sxml}");
-
-        let seq = s.get_seqs(3);
-        println!("seq: {seq:?}");
-
-        let s2 = from_str(&sxml).unwrap();
-        assert_eq!(s, s2);
+        // let sxml = to_string(&s).unwrap();
+        // println!("{sxml}");
 
         let mut buffer = String::new();
         let mut ser = Serializer::new(&mut buffer);
-        ser.indent(' ', 2);
-
+        ser.indent(' ', 4);
         s.serialize(ser).unwrap();
+        //println!("{buffer}");
 
-        println!("{buffer}");
+        //println!("num2: {}", s.faculty[2].faculty.len());
+        let seq = s.get_seqs(4);
+        println!("seq: {seq:?}");
+
+        let s2 = from_str(&buffer).unwrap();
+        assert_eq!(s, s2);
 
         // for a in s.days_array {
         //     println!("{} {}", a.day, get_weekday(a.date.weekday()));
