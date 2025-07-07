@@ -456,7 +456,7 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 } else if faculty_len > 3 {
                     Some(params.faculty[week_idx][(d + 3) % faculty_len].to_string())
                 } else {
-                    Some(params.faculty[week_idx][(d + 2) % faculty_len].to_string())
+                    Some(params.faculty[week_idx][(d + 1) % faculty_len].to_string())
                 },
                 quiz_grader: if is_exam {
                     None
@@ -475,9 +475,9 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                     ]
                 } else {
                     vec![
+                        params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
                         #[allow(clippy::identity_op)]
                         params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
-                        params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
                     ]
                 },
                 drill2: if is_exam {
@@ -496,6 +496,9 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 },
                 noon_optional1: if is_exam {
                     None
+                } else if faculty_len > 3 {
+                    #[allow(clippy::identity_op)]
+                    Some(params.faculty[week_idx][(d + 0) % faculty_len].to_string())
                 } else {
                     Some(params.faculty[week_idx][(d + 2) % faculty_len].to_string())
                 },
@@ -504,7 +507,8 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 } else if faculty_len > 3 {
                     Some(params.faculty[week_idx][(d + 3) % faculty_len].to_string())
                 } else {
-                    Some(params.faculty[week_idx][(d + 1) % faculty_len].to_string())
+                    #[allow(clippy::identity_op)]
+                    Some(params.faculty[week_idx][(d + 0) % faculty_len].to_string())
                 },
                 noon_optional1_title: if is_exam {
                     None
@@ -519,8 +523,7 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 lecture: if is_friday_review {
                     None
                 } else {
-                    #[allow(clippy::identity_op)]
-                    Some(params.faculty[week_idx][(d + 0) % faculty_len].to_string())
+                    Some(params.faculty[week_idx][(d + 1) % faculty_len].to_string())
                 },
                 lecture_title: if is_friday_review {
                     None
@@ -547,12 +550,11 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 voc_notes: if is_friday_review {
                     None
                 } else {
-                    Some(params.faculty[week_idx][(d + 1) % faculty_len].to_string())
+                    Some(params.faculty[week_idx][(d + 2) % faculty_len].to_string())
                 },
                 friday_review1: if is_friday_review {
                     vec![
-                        #[allow(clippy::identity_op)]
-                        params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
                         params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
                     ]
                 } else {
@@ -560,7 +562,12 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 },
                 friday_review2: if is_friday_review {
                     vec![
-                        params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
+                        if faculty_len > 3 {
+                            #[allow(clippy::identity_op)]
+                            params.faculty[week_idx][(d + 0) % faculty_len].to_string()
+                        } else {
+                            params.faculty[week_idx][(d + 1) % faculty_len].to_string()
+                        },
                         if faculty_len > 3 {
                             params.faculty[week_idx][(d + 3) % faculty_len].to_string()
                         } else {

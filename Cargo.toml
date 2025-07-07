@@ -1,5 +1,8 @@
 [package]
 name = "lgi_schedule"
+description = ""
+repository = ""
+license = ""
 version = "0.1.0"
 edition = "2024"
 
