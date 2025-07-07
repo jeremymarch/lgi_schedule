@@ -4,6 +4,7 @@ use quick_xml::se::Serializer;
 //use quick_xml::se::to_string;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 // enum SgiDays {
 //     DayOne,
@@ -22,7 +23,6 @@ pub struct Params<'a> {
     pub faculty: Vec<Vec<&'a str>>,
     pub start_date: &'a str,
     pub holidays: Vec<&'a str>,
-    pub lecture_assignments: Vec<&'a str>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -53,6 +53,7 @@ impl Summer {
         from_str(&s).unwrap()
     }
 
+    //week is the actual week, not zero-indexed
     pub fn get_seqs(&self, week: u32) -> Vec<(String, Vec<String>)> {
         let mut collector: HashMap<String, Vec<String>> = HashMap::new();
 
@@ -109,6 +110,27 @@ impl Summer {
                         fac_vector.push(String::from(group));
                     } else {
                         collector.insert(d1_fac.to_owned(), vec![String::from(group)]);
+                    }
+                }
+
+                //there are no morning optionals for week 1, so display
+                // "OFF" for places where faculty member is off
+                // drill 1 only because drill 2 has quiz
+                if day.morning_optional.is_none() && !drill1.is_empty() {
+                    let drill1_set: HashSet<_> = drill1.iter().cloned().collect();
+                    let missing_in_drill1: Vec<_> = self.faculty[week as usize - 1]
+                        .faculty
+                        .iter()
+                        .filter(|&x| !drill1_set.contains(x))
+                        .cloned()
+                        .collect();
+
+                    for missing in missing_in_drill1 {
+                        if let Some(fac_vector) = collector.get_mut(&missing) {
+                            fac_vector.push(String::from("OFF"));
+                        } else {
+                            collector.insert(missing, vec![String::from("OFF")]);
+                        }
                     }
                 }
 
@@ -454,61 +476,61 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 morning_optional: if day_num < 6 || is_exam {
                     None
                 } else if faculty_len > 3 {
-                    Some(params.faculty[week_idx][(d + 3) % faculty_len].to_string())
-                } else {
-                    Some(params.faculty[week_idx][(d + 1) % faculty_len].to_string())
-                },
-                quiz_grader: if is_exam {
-                    None
+                    Some(params.faculty[week_idx][(d + 2) % faculty_len].to_string())
                 } else {
                     #[allow(clippy::identity_op)]
                     Some(params.faculty[week_idx][(d + 0) % faculty_len].to_string())
+                },
+                quiz_grader: if is_exam {
+                    None
+                } else if faculty_len > 3 {
+                    Some(params.faculty[week_idx][(d + 3) % faculty_len].to_string())
+                } else {
+                    Some(params.faculty[week_idx][(d + 2) % faculty_len].to_string())
                 },
                 drill1: if is_exam {
                     vec![]
                 } else if faculty_len > 3 {
                     vec![
+                        params.faculty[week_idx][(d + 3) % faculty_len].to_string(),
                         #[allow(clippy::identity_op)]
                         params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
                         params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
-                        params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
                     ]
                 } else {
                     vec![
+                        params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
                         params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
-                        #[allow(clippy::identity_op)]
-                        params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
                     ]
                 },
                 drill2: if is_exam {
                     vec![]
                 } else if faculty_len > 3 {
                     vec![
-                        params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
-                        params.faculty[week_idx][(d + 3) % faculty_len].to_string(),
                         params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
+                        params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
+                        #[allow(clippy::identity_op)]
+                        params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
                     ]
                 } else {
                     vec![
+                        #[allow(clippy::identity_op)]
+                        params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
                         params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
-                        params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
                     ]
                 },
                 noon_optional1: if is_exam {
                     None
                 } else if faculty_len > 3 {
                     #[allow(clippy::identity_op)]
-                    Some(params.faculty[week_idx][(d + 0) % faculty_len].to_string())
+                    Some(params.faculty[week_idx][(d + 3) % faculty_len].to_string())
                 } else {
-                    Some(params.faculty[week_idx][(d + 2) % faculty_len].to_string())
+                    Some(params.faculty[week_idx][(d + 1) % faculty_len].to_string())
                 },
                 noon_optional2: if is_exam {
                     None
-                } else if faculty_len > 3 {
-                    Some(params.faculty[week_idx][(d + 3) % faculty_len].to_string())
                 } else {
-                    #[allow(clippy::identity_op)]
-                    Some(params.faculty[week_idx][(d + 0) % faculty_len].to_string())
+                    Some(params.faculty[week_idx][(d + 2) % faculty_len].to_string())
                 },
                 noon_optional1_title: if is_exam {
                     None
@@ -523,7 +545,8 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 lecture: if is_friday_review {
                     None
                 } else {
-                    Some(params.faculty[week_idx][(d + 1) % faculty_len].to_string())
+                    #[allow(clippy::identity_op)]
+                    Some(params.faculty[week_idx][(d + 0) % faculty_len].to_string())
                 },
                 lecture_title: if is_friday_review {
                     None
@@ -550,12 +573,13 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 voc_notes: if is_friday_review {
                     None
                 } else {
-                    Some(params.faculty[week_idx][(d + 2) % faculty_len].to_string())
+                    Some(params.faculty[week_idx][(d + 1) % faculty_len].to_string())
                 },
                 friday_review1: if is_friday_review {
                     vec![
-                        params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
                         params.faculty[week_idx][(d + 1) % faculty_len].to_string(),
+                        #[allow(clippy::identity_op)]
+                        params.faculty[week_idx][(d + 0) % faculty_len].to_string(),
                     ]
                 } else {
                     vec![]
@@ -563,17 +587,12 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 friday_review2: if is_friday_review {
                     vec![
                         if faculty_len > 3 {
-                            #[allow(clippy::identity_op)]
-                            params.faculty[week_idx][(d + 0) % faculty_len].to_string()
-                        } else {
-                            params.faculty[week_idx][(d + 1) % faculty_len].to_string()
-                        },
-                        if faculty_len > 3 {
                             params.faculty[week_idx][(d + 3) % faculty_len].to_string()
                         } else {
                             #[allow(clippy::identity_op)]
                             params.faculty[week_idx][(d + 0) % faculty_len].to_string()
                         },
+                        params.faculty[week_idx][(d + 2) % faculty_len].to_string(),
                     ]
                 } else {
                     vec![]
@@ -616,7 +635,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn xml_roundtrip() {
+    fn test_xml_roundtrip() {
         let start_date = "2025-06-09";
         let holidays = vec!["2025-06-19", "2025-07-04"];
         let faculty = vec![
@@ -633,16 +652,10 @@ mod tests {
             vec!["BP", "JM", "EBH"],
         ];
 
-        let lectures = vec![
-            "EBH", "JM", "HH", "EBH", "HH", "JM", "BP", "HH", "JM", "HH", "BP", "EBH", "JM", "EBH",
-            "JM", "BP", "EBH", "BP", "JM", "EBH", "BP", "EBH", "JM",
-        ];
-
         let p = Params {
             faculty,
             start_date,
             holidays,
-            lecture_assignments: lectures,
         };
 
         let s = create_summer(&p).unwrap();
@@ -671,16 +684,10 @@ mod tests {
             vec!["BP", "JM", "EBH"],
         ];
 
-        let lectures = vec![
-            "EBH", "JM", "HH", "EBH", "HH", "JM", "BP", "HH", "JM", "HH", "BP", "EBH", "JM", "EBH",
-            "JM", "BP", "EBH", "BP", "JM", "EBH", "BP", "EBH", "JM",
-        ];
-
         let p = Params {
             faculty,
             start_date,
             holidays,
-            lecture_assignments: lectures,
         };
 
         let s = create_summer(&p).unwrap();
