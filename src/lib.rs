@@ -23,6 +23,7 @@ pub struct Params<'a> {
     pub faculty: Vec<Vec<&'a str>>,
     pub start_date: &'a str,
     pub holidays: Vec<&'a str>,
+    pub second_half_noon_optionals: Vec<Option<&'a str>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -213,6 +214,8 @@ pub struct Day {
     pub friday_review1: Vec<String>,
     #[serde(default)]
     pub friday_review2: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub review_title: Option<String>,
     //pub sunday_review: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub other: Option<String>,
@@ -380,6 +383,7 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
     let mut day_num = 1;
     let mut lecture_num: u32 = 0;
     let mut week_idx = 0;
+    let mut op: usize = 0;
     let mut faculty_len = params.faculty[week_idx].len();
     for d in 0..=70 {
         let is_exam = ((these_days.weekday() == Weekday::Tuesday
@@ -395,8 +399,10 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
         let is_friday_review = (these_days.weekday() == Weekday::Thursday
             && summer
                 .holidays
-                .contains(&these_days.checked_add(one_day).unwrap()))
-            || these_days.weekday() == Weekday::Friday
+                .contains(&these_days.checked_add(one_day).unwrap())
+            && day_num != 23)
+            || (these_days.weekday() == Weekday::Friday && day_num != 23)
+            || day_num == 22
             || day_num == 27;
 
         if day_num == 1 {
@@ -424,6 +430,7 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 voc_notes: None,
                 friday_review1: vec![],
                 friday_review2: vec![],
+                review_title: None,
                 other: None,
                 test: vec![],
             };
@@ -453,9 +460,12 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 voc_notes: None,
                 friday_review1: vec![],
                 friday_review2: vec![],
+                review_title: None,
                 other: match these_days.weekday() {
-                    Weekday::Saturday => Some(String::from("Rest and Study")),
-                    Weekday::Sunday => Some(String::from("Review")),
+                    Weekday::Saturday => Some(String::from("REST AND STUDY")),
+                    Weekday::Sunday => Some(String::from(
+                        "(optional)  2:00 p.m.  REVIEW – JM in charge (Room 5417)",
+                    )),
                     _ => Some(String::from("Holiday, rest and study")),
                 },
                 test: vec![],
@@ -534,11 +544,25 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 },
                 noon_optional1_title: if is_exam {
                     None
+                } else if week_idx > 5 {
+                    op += 1;
+                    if let Some(a) = params.second_half_noon_optionals[op - 1] {
+                        Some(a.to_string())
+                    } else {
+                        None
+                    }
                 } else {
                     Some(String::from("Grammar"))
                 },
                 noon_optional2_title: if is_exam {
                     None
+                } else if week_idx > 5 {
+                    op += 1;
+                    if let Some(a) = params.second_half_noon_optionals[op - 1] {
+                        Some(a.to_string())
+                    } else {
+                        None
+                    }
                 } else {
                     Some(String::from("Sight"))
                 },
@@ -553,20 +577,10 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                 } else {
                     match day_num {
                         1 => Some(String::from("Lecture on Accents")),
-                        2..27 => Some(format!(
-                            "Lecture on Unit {}",
-                            if (these_days.weekday() == Weekday::Thursday
-                                && summer
-                                    .holidays
-                                    .contains(&these_days.checked_add(one_day).unwrap()))
-                                || these_days.weekday() == Weekday::Friday
-                            {
-                                0
-                            } else {
-                                lecture_num += 1;
-                                lecture_num
-                            }
-                        )),
+                        2..27 => Some(format!("Lecture on Unit {}", {
+                            lecture_num += 1;
+                            lecture_num
+                        })),
                         _ => None,
                     }
                 },
@@ -596,6 +610,15 @@ pub fn create_summer(params: &Params) -> Option<Summer> {
                     ]
                 } else {
                     vec![]
+                },
+                review_title: if is_friday_review {
+                    if day_num == 22 {
+                        Some(String::from("Plato Sight"))
+                    } else {
+                        Some(String::from("Review"))
+                    }
+                } else {
+                    None
                 },
                 other: None,
                 test: vec![LgiClass {
@@ -652,10 +675,47 @@ mod tests {
             vec!["BP", "JM", "EBH"],
         ];
 
+        let second_half_noon_optionals = vec![
+            Some("Verbs from H&Q 15-20"),
+            Some("Aristotle"),
+            Some("-MI Verbs"),
+            Some("Xenophon"),
+            Some("Noun Morphology"),
+            Some("Xenophon"),
+            Some("Participles"),
+            Some("Plato"),
+            Some("Correlatives"),
+            None,
+            Some("Conditional Sentences"),
+            Some("Hesiod"),
+            Some("Temporal Clauses"),
+            Some("Solon"),
+            Some("Indirect Statement"),
+            Some("Xenophanes"),
+            Some("Prepositions"),
+            Some("Plato"),
+            Some("Plato"),
+            Some("Pindar"),
+            Some("Herodotus"),
+            Some("Herodotus"),
+            Some("Anaxagoras"),
+            None,
+            Some("Aristophanes"),
+            Some("Aristophanes"),
+            Some("Lucian"),
+            Some("Antiphon"),
+            Some("Antiphon"),
+            Some("Plato"),
+            Some("Plato"),
+            Some("Skolia"),
+            None,
+        ];
+
         let p = Params {
             faculty,
             start_date,
             holidays,
+            second_half_noon_optionals,
         };
 
         let s = create_summer(&p).unwrap();
@@ -683,11 +743,47 @@ mod tests {
             vec!["BP", "JM", "EBH"],
             vec!["BP", "JM", "EBH"],
         ];
+        let second_half_noon_optionals = vec![
+            Some("Verbs from H&Q 15-20"),
+            Some("Aristotle"),
+            Some("-MI Verbs"),
+            Some("Xenophon"),
+            Some("Noun Morphology"),
+            Some("Xenophon"),
+            Some("Participles"),
+            Some("Plato"),
+            Some("Correlatives"),
+            None,
+            Some("Conditional Sentences"),
+            Some("Hesiod"),
+            Some("Temporal Clauses"),
+            Some("Solon"),
+            Some("Indirect Statement"),
+            Some("Xenophanes"),
+            Some("Prepositions"),
+            Some("Plato"),
+            Some("Plato"),
+            Some("Pindar"),
+            Some("Herodotus"),
+            Some("Herodotus"),
+            Some("Anaxagoras"),
+            None,
+            Some("Aristophanes"),
+            Some("Aristophanes"),
+            Some("Lucian"),
+            Some("Antiphon"),
+            Some("Antiphon"),
+            Some("Plato"),
+            Some("Plato"),
+            Some("Skolia"),
+            None,
+        ];
 
         let p = Params {
             faculty,
             start_date,
             holidays,
+            second_half_noon_optionals,
         };
 
         let s = create_summer(&p).unwrap();
